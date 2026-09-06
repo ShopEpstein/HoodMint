@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>HoodMint — launch a mint on Robinhood Chain</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.2/ethers.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#06120D; --panel:#0B1F16; --panel-2:#0E2A1D; --line:#1C3A2A;
+    --ink:#EAF3EC; --muted:#7E9A88; --primary:#C6F24E; --primary-ink:#0A1A05;
+    --gold:#E8B84B; --danger:#F2665E; --ok:#7BE08A;
+    --mono:'IBM Plex Mono',ui-monospace,monospace;
+    --disp:'Space Grotesk',system-ui,sans-serif;
+    --body:'Inter',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);-webkit-font-smoothing:antialiased}
+  body{background:
+    radial-gradient(1200px 500px at 80% -10%, rgba(198,242,78,.06), transparent 60%),
+    radial-gradient(900px 400px at 0% 110%, rgba(232,184,75,.05), transparent 55%),
+    var(--bg);min-height:100vh}
+  a{color:var(--primary)}
+  .wrap{max-width:920px;margin:0 auto;padding:20px 18px 80px}
+  header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 0 22px;flex-wrap:wrap}
+  .brand{display:flex;align-items:center;gap:12px}
+  .mark{width:34px;height:34px;background:var(--primary);position:relative;
+    clip-path:polygon(0 6px,6px 6px,6px 0,calc(100% - 6px) 0,calc(100% - 6px) 6px,100% 6px,100% calc(100% - 6px),calc(100% - 6px) calc(100% - 6px),calc(100% - 6px) 100%,6px 100%,6px calc(100% - 6px),0 calc(100% - 6px))}
+  .mark::after{content:"";position:absolute;inset:9px;background:var(--primary-ink);
+    clip-path:polygon(0 0,60% 0,60% 40%,100% 40%,100% 100%,0 100%)}
+  .brand h1{font-family:var(--disp);font-weight:700;font-size:19px;letter-spacing:-.02em;margin:0}
+  .brand small{display:block;color:var(--muted);font-size:11px;font-weight:500;letter-spacing:.04em}
+  .net{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12px;color:var(--muted);
+    border:1px solid var(--line);padding:7px 10px;border-radius:8px;background:var(--panel)}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--danger)}
+  .dot.on{background:var(--ok);box-shadow:0 0 8px var(--ok)}
+  button{font-family:var(--body);cursor:pointer;border:none;border-radius:10px;font-weight:600;transition:transform .06s ease, filter .15s ease}
+  button:active{transform:translateY(1px)}
+  .btn{background:var(--primary);color:var(--primary-ink);padding:11px 16px;font-size:14px}
+  .btn:hover{filter:brightness(1.06)}
+  .btn:disabled{background:var(--line);color:var(--muted);cursor:not-allowed}
+  .btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+  .btn.ghost:hover{border-color:var(--primary);color:var(--primary)}
+  .btn.sm{padding:8px 12px;font-size:13px;border-radius:8px}
+  .lede{font-family:var(--disp);font-weight:700;font-size:clamp(26px,5vw,40px);line-height:1.04;letter-spacing:-.03em;margin:6px 0 6px}
+  .lede em{font-style:normal;color:var(--primary)}
+  .sub{color:var(--muted);font-size:15px;max-width:54ch;line-height:1.5;margin:0 0 20px}
+  .tabs{display:flex;gap:4px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:4px;width:fit-content;margin-bottom:18px}
+  .tab{background:transparent;color:var(--muted);padding:9px 16px;font-size:14px;border-radius:8px}
+  .tab.active{background:var(--panel-2);color:var(--ink);box-shadow:inset 0 0 0 1px var(--line)}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:560px){.grid{grid-template-columns:1fr}.wrap{padding:14px 12px 80px}}
+  .field{display:flex;flex-direction:column;gap:6px}
+  .field.full{grid-column:1/-1}
+  label{font-size:13px;color:var(--muted);font-weight:500}
+  label .hint{color:#5f7a68;font-weight:400}
+  input,textarea{background:var(--bg);border:1px solid var(--line);color:var(--ink);padding:11px 12px;border-radius:9px;font-size:14px;font-family:var(--body);width:100%}
+  input:focus,textarea:focus{outline:none;border-color:var(--primary)}
+  input.mono{font-family:var(--mono);font-size:13px}
+  .row{display:flex;gap:10px;align-items:center}
+  .note{font-size:12.5px;color:var(--muted);line-height:1.5}
+  .safe{display:flex;flex-wrap:wrap;gap:8px 16px;margin:16px 0 4px;padding-top:14px;border-top:1px solid var(--line)}
+  .safe span{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px}
+  .safe span::before{content:"";width:5px;height:5px;background:var(--primary);border-radius:1px}
+  .result{margin-top:16px;border:1px solid var(--line);border-radius:12px;padding:16px;background:var(--panel-2)}
+  .addr{font-family:var(--mono);font-size:13px;color:var(--ink);word-break:break-all}
+  .kv{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px dashed var(--line);font-size:14px}
+  .kv:last-child{border-bottom:none}
+  .kv b{font-weight:600}
+  .bar{height:9px;background:var(--bg);border:1px solid var(--line);border-radius:99px;overflow:hidden;margin:6px 0 2px}
+  .bar > i{display:block;height:100%;background:var(--primary);width:0%}
+  .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--panel-2);border:1px solid var(--line);color:var(--ink);padding:12px 16px;border-radius:10px;font-size:14px;max-width:90vw;box-shadow:0 12px 40px rgba(0,0,0,.5);opacity:0;pointer-events:none;transition:opacity .2s;z-index:9}
+  .toast.show{opacity:1}
+  .toast.err{border-color:var(--danger)}
+  .explore-item{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:13px;border:1px solid var(--line);border-radius:11px;margin-bottom:9px;background:var(--panel-2)}
+  .explore-item .m{font-family:var(--mono);font-size:12px;color:var(--muted)}
+  .pill{font-size:11px;color:var(--gold);border:1px solid var(--line);padding:3px 8px;border-radius:99px;font-family:var(--mono)}
+  .hide{display:none}
+  .center{text-align:center;color:var(--muted);padding:26px;font-size:14px}
+  footer{color:#4d6656;font-size:12px;text-align:center;margin-top:26px;font-family:var(--mono)}
+  /* art block */
+  .art{margin-top:6px;border:1px solid var(--line);border-radius:12px;padding:16px;background:var(--panel-2)}
+  .seg{display:flex;gap:4px;background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:3px;width:fit-content;margin-bottom:12px;flex-wrap:wrap}
+  .seg button{background:transparent;color:var(--muted);padding:7px 12px;font-size:13px;border-radius:7px}
+  .seg button.on{background:var(--panel);color:var(--ink);box-shadow:inset 0 0 0 1px var(--line)}
+  .drop{border:1px dashed var(--line);border-radius:10px;padding:16px;text-align:center;color:var(--muted);font-size:13px;cursor:pointer}
+  .drop:hover{border-color:var(--primary);color:var(--ink)}
+  .thumbs{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+  .thumbs img{width:44px;height:44px;object-fit:cover;border-radius:6px;border:1px solid var(--line)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <div class="mark"></div>
+      <div><h1>HoodMint</h1><small>A HoodStreet Media utility · Robinhood Chain</small></div>
+    </div>
+    <div class="row">
+      <div class="net"><span class="dot" id="netDot"></span><span id="netText">not connected</span></div>
+      <button class="btn sm" id="connectBtn">Connect wallet</button>
+    </div>
+  </header>
+
+  <div class="lede">Launch a collection <em>nobody can hide.</em></div>
+  <p class="sub">Upload your art, deploy a safe free-mint to Robinhood Chain in one flow, and share a mint link straight into your Space. Renounceable, no hidden mint, royalties enforceable on-chain.</p>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="launch">Launch</button>
+    <button class="tab" data-tab="mint">Mint</button>
+    <button class="tab" data-tab="explore">Explore</button>
+  </div>
+
+  <!-- LAUNCH -->
+  <section class="panel" id="tab-launch">
+    <div class="grid">
+      <div class="field"><label>Collection name</label><input id="f-name" placeholder="Hood Ducks" /></div>
+      <div class="field"><label>Symbol</label><input id="f-symbol" placeholder="DUCK" /></div>
+      <div class="field"><label>Max supply</label><input id="f-supply" type="number" min="1" placeholder="2222" /></div>
+      <div class="field"><label>Max per wallet <span class="hint">(0 = unlimited)</span></label><input id="f-perwallet" type="number" min="0" placeholder="2" /></div>
+      <div class="field"><label>Creator royalty % <span class="hint">(max 10)</span></label><input id="f-royalty" type="number" min="0" max="10" step="0.5" value="10" /></div>
+      <div class="field"><label>Reserve to you <span class="hint">(minted at deploy)</span></label><input id="f-reserve" type="number" min="0" placeholder="0" /></div>
+      <div class="field full"><label>Description <span class="hint">(used in token metadata)</span></label><textarea id="f-desc" rows="2" placeholder="A free Hoodstreet drop."></textarea></div>
+    </div>
+
+    <!-- ART -->
+    <div class="art">
+      <div class="seg" id="artSeg">
+        <button data-art="same" class="on">Same art for all</button>
+        <button data-art="set">Numbered set</button>
+        <button data-art="cid">Paste a CID</button>
+      </div>
+
+      <div id="art-upload">
+        <div class="drop" id="dropZone">Click to choose art — <span id="dropHint">one image for the whole collection</span></div>
+        <input type="file" id="fileInput" accept="image/*" multiple class="hide" />
+        <div class="thumbs" id="thumbs"></div>
+        <div class="row" style="margin-top:12px">
+          <button class="btn ghost sm" id="pinBtn">Generate metadata &amp; pin</button>
+          <span class="note" id="pinStatus"></span>
+        </div>
+      </div>
+
+      <div class="field full" style="margin-top:12px">
+        <label>Base metadata URI <span class="hint">(auto-filled after pinning, or paste your own)</span></label>
+        <input class="mono" id="f-baseuri" placeholder="ipfs://YOUR_CID/" />
+      </div>
+      <div class="field full" style="margin-top:10px"><label>Royalty receiver <span class="hint">(blank = your wallet)</span></label><input class="mono" id="f-royreceiver" placeholder="0x… (optional)" /></div>
+    </div>
+
+    <div class="safe">
+      <span>free mints, always</span><span>no owner mint past cap</span>
+      <span>no blacklist / no pause</span><span>metadata freezable</span><span>Blockscout-verifiable</span>
+    </div>
+
+    <div class="row" style="margin-top:18px">
+      <button class="btn" id="launchBtn">Deploy collection</button>
+      <span class="note">Minting starts OFF — you flip it on when you're ready.</span>
+    </div>
+    <div class="result hide" id="launchResult"></div>
+  </section>
+
+  <!-- MINT -->
+  <section class="panel hide" id="tab-mint">
+    <div class="field full">
+      <label>Collection address</label>
+      <div class="row">
+        <input class="mono" id="m-addr" placeholder="0x… paste a collection address" />
+        <button class="btn ghost sm" id="loadBtn">Load</button>
+      </div>
+    </div>
+    <div id="mintBody" class="hide" style="margin-top:16px">
+      <div class="kv"><span id="m-name">—</span><span class="pill" id="m-sym">—</span></div>
+      <div class="kv"><span>Minted</span><b id="m-progress">— / —</b></div>
+      <div class="bar"><i id="m-fill"></i></div>
+      <div class="kv"><span>Price</span><b id="m-price">Free</b></div>
+      <div class="kv"><span>Status</span><b id="m-status">—</b></div>
+      <div class="row" style="margin-top:16px">
+        <input id="m-qty" type="number" min="1" value="1" style="max-width:90px" />
+        <button class="btn" id="mintBtn">Mint</button>
+      </div>
+      <p class="note" id="m-owner-tools" style="margin-top:12px"></p>
+    </div>
+    <div class="center" id="mintEmpty">Paste a collection address, or open a mint link to jump straight in.</div>
+  </section>
+
+  <!-- EXPLORE -->
+  <section class="panel hide" id="tab-explore">
+    <div id="exploreList"><div class="center">Connect to load recent launches.</div></div>
+  </section>
+
+  <footer>A HoodStreet Media utility · built by CashPig &amp; Roaring Piggy<br>chain 4663 · not affiliated with Robinhood Markets · verify every contract before you mint</footer>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================ CONFIG ============================ */
+const FACTORY_ADDRESS = "0x0000000000000000000000000000000000000000"; // set after deploy
+const PIN_ENDPOINT = "/api/pin"; // serverless pinning; falls back to manual CID if unset
+
+const RH = {
+  chainIdHex: "0x1237", // 4663
+  params: {
+    chainId: "0x1237",
+    chainName: "Robinhood Chain",
+    nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
+    rpcUrls: ["https://rpc.mainnet.chain.robinhood.com"],
+    blockExplorerUrls: ["https://robinhoodchain.blockscout.com"],
+  },
+  explorer: "https://robinhoodchain.blockscout.com",
+};
+
+const FACTORY_ABI = [
+  "function creationFee() view returns (uint256)",
+  "function totalCollections() view returns (uint256)",
+  "function collectionsPaged(uint256 start, uint256 count) view returns (address[])",
+  "function createCollection(tuple(string name,string symbol,uint256 maxSupply,uint256 maxPerWallet,uint256 mintPrice,uint96 royaltyBps,address royaltyReceiver,string baseURI,string contractURI,uint256 reserveQuantity) p) payable returns (address)",
+  "event CollectionCreated(address indexed collection,address indexed creator,string name,string symbol,uint256 maxSupply,uint256 maxPerWallet,uint256 mintPrice,uint96 royaltyBps,address royaltyReceiver,uint256 reserveQuantity,uint256 index)",
+];
+const COLLECTION_ABI = [
+  "function name() view returns (string)","function symbol() view returns (string)",
+  "function maxSupply() view returns (uint256)","function minted() view returns (uint256)",
+  "function mintPrice() view returns (uint256)","function maxPerWallet() view returns (uint256)",
+  "function mintActive() view returns (bool)","function owner() view returns (address)",
+  "function mintedBy(address) view returns (uint256)",
+  "function mint(uint256 quantity) payable","function setMintActive(bool active)",
+];
+
+/* ============================ STATE ============================ */
+let provider, signer, account, factory;
+let artMode = "same";        // same | set | cid
+let artFiles = [];           // File[]
+
+/* ============================ HELPERS ============================ */
+const $ = (id) => document.getElementById(id);
+const short = (a) => a ? a.slice(0,6) + "…" + a.slice(-4) : "";
+function toast(msg, isErr){ const t=$("toast"); t.textContent=msg; t.className="toast show"+(isErr?" err":""); setTimeout(()=> t.className="toast", 3400); }
+function setNet(on, text){ $("netDot").className="dot"+(on?" on":""); $("netText").textContent=text; }
+function err(e){ const m=e?.info?.error?.message||e?.shortMessage||e?.reason||e?.message||"Transaction failed"; return m.length>90?m.slice(0,90)+"…":m; }
+function needFactory(){ if(FACTORY_ADDRESS==="0x0000000000000000000000000000000000000000"){ toast("Set FACTORY_ADDRESS after you deploy the factory.", true); return true;} return false; }
+function fileToBase64(file){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(String(r.result).split(",")[1]); r.onerror=rej; r.readAsDataURL(file); }); }
+
+/* ============================ WALLET ============================ */
+async function connect(){
+  if(!window.ethereum){ toast("No wallet found. Install a Web3 wallet.", true); return; }
+  try{
+    provider = new ethers.BrowserProvider(window.ethereum);
+    await provider.send("eth_requestAccounts", []);
+    await ensureNetwork();
+    signer = await provider.getSigner();
+    account = await signer.getAddress();
+    factory = new ethers.Contract(FACTORY_ADDRESS, FACTORY_ABI, signer);
+    $("connectBtn").textContent = short(account);
+    setNet(true, "Robinhood · " + short(account));
+    toast("Connected");
+    if(currentTab==="explore") loadExplore();
+    if(pendingCollection){ $("m-addr").value=pendingCollection; loadCollection(); }
+  }catch(e){ toast(err(e), true); }
+}
+async function ensureNetwork(){
+  const net = await provider.getNetwork();
+  if(Number(net.chainId)===4663) return;
+  try{ await window.ethereum.request({ method:"wallet_switchEthereumChain", params:[{chainId:RH.chainIdHex}] }); }
+  catch(sw){ if(sw.code===4902){ await window.ethereum.request({ method:"wallet_addEthereumChain", params:[RH.params] }); } else throw sw; }
+  provider = new ethers.BrowserProvider(window.ethereum);
+}
+
+/* ============================ ART UPLOADER ============================ */
+document.querySelectorAll("#artSeg button").forEach(b=> b.onclick=()=>{
+  artMode = b.dataset.art;
+  document.querySelectorAll("#artSeg button").forEach(x=> x.classList.toggle("on", x===b));
+  $("art-upload").classList.toggle("hide", artMode==="cid");
+  $("dropHint").textContent = artMode==="same" ? "one image for the whole collection" : "one image per token, in order (1, 2, 3 …)";
+  $("fileInput").multiple = artMode==="set";
+  if(artMode!=="set"){ artFiles = artFiles.slice(0,1); renderThumbs(); }
+});
+$("dropZone").onclick = ()=> $("fileInput").click();
+$("fileInput").onchange = (e)=>{
+  const files = [...e.target.files].filter(f=> f.type.startsWith("image/"));
+  artFiles = artMode==="same" ? files.slice(0,1) : files;
+  renderThumbs();
+};
+function renderThumbs(){
+  const t = $("thumbs"); t.innerHTML="";
+  artFiles.forEach(f=>{ const img=document.createElement("img"); img.src=URL.createObjectURL(f); t.appendChild(img); });
+  $("dropZone").textContent = artFiles.length
+    ? `${artFiles.length} image${artFiles.length>1?"s":""} selected — click to change`
+    : "Click to choose art";
+}
+async function pinArt(){
+  if(artMode==="cid"){ return; }
+  if(artFiles.length===0){ toast("Choose at least one image first", true); return; }
+  const name = $("f-name").value.trim();
+  const supply = parseInt($("f-supply").value||"0");
+  if(!name){ toast("Enter the collection name first", true); return; }
+  if(!supply){ toast("Enter max supply first", true); return; }
+  if(artMode==="set" && artFiles.length < supply){ toast(`Numbered set needs ${supply} images`, true); return; }
+
+  const btn=$("pinBtn"); btn.disabled=true; const st=$("pinStatus"); st.textContent="Reading art…";
+  try{
+    const images=[];
+    for(const f of (artMode==="same"?artFiles.slice(0,1):artFiles)){
+      images.push({ filename:f.name, mime:f.type, base64: await fileToBase64(f) });
+    }
+    st.textContent="Pinning to IPFS…";
+    const res = await fetch(PIN_ENDPOINT, {
+      method:"POST", headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({ name, description:$("f-desc").value.trim(), tokenCount:supply, sameArt: artMode==="same", images }),
+    });
+    if(res.status===503){ st.textContent=""; toast("Pinning not configured — paste a CID instead.", true); switchArt("cid"); return; }
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error||"pin failed");
+    $("f-baseuri").value = data.baseURI;
+    st.textContent = "Pinned ✔ baseURI ready";
+    toast("Art pinned — baseURI filled in");
+  }catch(e){ st.textContent=""; toast("Pin failed: "+err(e)+" — you can paste a CID instead.", true); }
+  finally{ btn.disabled=false; }
+}
+function switchArt(mode){ const b=document.querySelector(`#artSeg button[data-art="${mode}"]`); if(b) b.click(); }
+
+/* ============================ LAUNCH ============================ */
+async function launch(){
+  if(needFactory()) return;
+  if(!signer){ await connect(); if(!signer) return; }
+  const name=$("f-name").value.trim(), symbol=$("f-symbol").value.trim();
+  const supply=parseInt($("f-supply").value||"0"), perWallet=parseInt($("f-perwallet").value||"0");
+  const royPct=parseFloat($("f-royalty").value||"0"), reserve=parseInt($("f-reserve").value||"0");
+  const baseURI=$("f-baseuri").value.trim(), royReceiver=$("f-royreceiver").value.trim()||ethers.ZeroAddress;
+
+  if(!name){ toast("Name required", true); return; }
+  if(!symbol){ toast("Symbol required", true); return; }
+  if(!supply||supply<1){ toast("Max supply must be at least 1", true); return; }
+  if(royPct>10){ toast("Royalty capped at 10%", true); return; }
+  if(reserve>supply){ toast("Reserve can't exceed supply", true); return; }
+  if(!baseURI){ if(!confirm("No metadata URI set — tokens will have no art until you set it later. Deploy anyway?")) return; }
+
+  const params={ name, symbol, maxSupply:supply, maxPerWallet:perWallet, mintPrice:0n,
+    royaltyBps:Math.round(royPct*100), royaltyReceiver:royReceiver, baseURI, contractURI:"", reserveQuantity:reserve };
+
+  const btn=$("launchBtn"); btn.disabled=true; btn.textContent="Deploying…";
+  try{
+    let fee=0n; try{ fee=await factory.creationFee(); }catch(_){}
+    const tx=await factory.createCollection(params, { value:fee });
+    toast("Deploying — confirm in wallet");
+    const rcpt=await tx.wait();
+    let addr=null;
+    for(const log of rcpt.logs){ try{ const p=factory.interface.parseLog(log); if(p&&p.name==="CollectionCreated"){ addr=p.args.collection; break; } }catch(_){} }
+    showLaunchResult(addr, name);
+    toast("Deployed ✔");
+  }catch(e){ toast(err(e), true); }
+  finally{ btn.disabled=false; btn.textContent="Deploy collection"; }
+}
+function mintLink(addr){ return location.origin+location.pathname+"?c="+addr; }
+function showLaunchResult(addr, name){
+  const box=$("launchResult"); box.classList.remove("hide");
+  if(!addr){ box.innerHTML="<p class='note'>Deployed, but couldn't read the address from the receipt. Check the explorer.</p>"; return; }
+  const link=mintLink(addr);
+  box.innerHTML=`
+    <div class="kv"><span>Collection</span><b>${name}</b></div>
+    <div class="kv"><span>Contract</span><a class="addr" href="${RH.explorer}/address/${addr}" target="_blank">${addr}</a></div>
+    <div class="field full" style="margin-top:12px">
+      <label>Share this mint link in your Space</label>
+      <div class="row"><input class="mono" id="shareLink" readonly value="${link}" />
+      <button class="btn ghost sm" id="copyLink">Copy</button></div>
+    </div>
+    <div class="row" style="margin-top:14px">
+      <button class="btn" id="goLiveBtn">Turn minting ON</button>
+      <span class="note">Minting is off until you flip it on.</span>
+    </div>`;
+  $("copyLink").onclick=()=>{ navigator.clipboard.writeText(link); toast("Link copied"); };
+  $("goLiveBtn").onclick=()=> goLive(addr);
+}
+async function goLive(addr){
+  try{ const c=new ethers.Contract(addr, COLLECTION_ABI, signer);
+    const tx=await c.setMintActive(true); toast("Turning minting on — confirm in wallet"); await tx.wait(); toast("Minting is LIVE ✔");
+  }catch(e){ toast(err(e), true); }
+}
+
+/* ============================ MINT ============================ */
+let loadedCollection=null;
+async function loadCollection(){
+  const addr=$("m-addr").value.trim();
+  if(!ethers.isAddress(addr)){ toast("Enter a valid address", true); return; }
+  if(!provider) provider=new ethers.JsonRpcProvider(RH.params.rpcUrls[0], 4663);
+  try{
+    const c=new ethers.Contract(addr, COLLECTION_ABI, signer||provider);
+    const [name,sym,max,mnt,price,active]=await Promise.all([c.name(),c.symbol(),c.maxSupply(),c.minted(),c.mintPrice(),c.mintActive()]);
+    loadedCollection={ addr, price };
+    $("mintEmpty").classList.add("hide"); $("mintBody").classList.remove("hide");
+    $("m-name").textContent=name; $("m-sym").textContent=sym;
+    const minted=Number(mnt);
+    $("m-progress").textContent=minted+" / "+Number(max);
+    $("m-fill").style.width=(Number(max)?(minted/Number(max)*100):0)+"%";
+    $("m-price").textContent=price===0n?"Free":ethers.formatEther(price)+" ETH";
+    $("m-status").textContent=active?"Live":"Not yet live";
+    $("m-status").style.color=active?"var(--ok)":"var(--gold)";
+    $("mintBtn").disabled=!active;
+    if(signer&&account){ try{ const owner=await c.owner();
+      if(owner.toLowerCase()===account.toLowerCase()&&!active){
+        $("m-owner-tools").innerHTML="You own this. <a href='#' id='ownerGoLive'>Turn minting on →</a>";
+        setTimeout(()=>{ const g=$("ownerGoLive"); if(g) g.onclick=(ev)=>{ev.preventDefault(); goLive(addr);}; },0);
+      } else $("m-owner-tools").textContent="";
+    }catch(_){}}
+  }catch(e){ toast(err(e), true); }
+}
+async function mint(){
+  if(!loadedCollection) return;
+  if(!signer){ await connect(); if(!signer) return; }
+  const qty=parseInt($("m-qty").value||"1");
+  if(qty<1){ toast("Quantity must be at least 1", true); return; }
+  const btn=$("mintBtn"); btn.disabled=true; btn.textContent="Minting…";
+  try{
+    const c=new ethers.Contract(loadedCollection.addr, COLLECTION_ABI, signer);
+    const tx=await c.mint(qty, { value: loadedCollection.price*BigInt(qty) });
+    toast("Minting — confirm in wallet"); await tx.wait(); toast("Minted ✔"); loadCollection();
+  }catch(e){ toast(err(e), true); }
+  finally{ btn.disabled=false; btn.textContent="Mint"; }
+}
+
+/* ============================ EXPLORE ============================ */
+async function loadExplore(){
+  const list=$("exploreList");
+  if(needFactory()){ list.innerHTML="<div class='center'>Set the factory address to explore launches.</div>"; return; }
+  const p=provider||new ethers.JsonRpcProvider(RH.params.rpcUrls[0], 4663);
+  const f=new ethers.Contract(FACTORY_ADDRESS, FACTORY_ABI, p);
+  try{
+    const total=Number(await f.totalCollections());
+    if(total===0){ list.innerHTML="<div class='center'>No launches yet. Be the first.</div>"; return; }
+    const start=Math.max(0,total-12);
+    const addrs=await f.collectionsPaged(start, total-start);
+    list.innerHTML="";
+    for(const a of [...addrs].reverse()){
+      try{ const c=new ethers.Contract(a, COLLECTION_ABI, p);
+        const [name,mnt,max,active]=await Promise.all([c.name(),c.minted(),c.maxSupply(),c.mintActive()]);
+        const el=document.createElement("div"); el.className="explore-item";
+        el.innerHTML=`<div><div style="font-weight:600">${name}</div>
+          <div class="m">${short(a)} · ${Number(mnt)}/${Number(max)} minted</div></div>
+          <div class="row"><span class="pill">${active?"live":"soon"}</span>
+          <button class="btn sm" data-mint="${a}">Mint</button></div>`;
+        list.appendChild(el);
+      }catch(_){}
+    }
+    list.querySelectorAll("[data-mint]").forEach(b=> b.onclick=()=>{ switchTab("mint"); $("m-addr").value=b.getAttribute("data-mint"); loadCollection(); });
+  }catch(e){ list.innerHTML="<div class='center'>Couldn't load launches.</div>"; }
+}
+
+/* ============================ TABS / INIT ============================ */
+let currentTab="launch", pendingCollection=null;
+function switchTab(name){
+  currentTab=name;
+  document.querySelectorAll(".tab").forEach(t=> t.classList.toggle("active", t.dataset.tab===name));
+  ["launch","mint","explore"].forEach(t=> $("tab-"+t).classList.toggle("hide", t!==name));
+  if(name==="explore") loadExplore();
+}
+document.querySelectorAll(".tab").forEach(t=> t.onclick=()=> switchTab(t.dataset.tab));
+$("connectBtn").onclick=connect; $("launchBtn").onclick=launch; $("mintBtn").onclick=mint;
+$("loadBtn").onclick=loadCollection; $("pinBtn").onclick=pinArt;
+
+(function initDeepLink(){
+  const c=new URLSearchParams(location.search).get("c");
+  if(c&&ethers.isAddress(c)){ pendingCollection=c; switchTab("mint"); $("m-addr").value=c; loadCollection(); }
+})();
+if(window.ethereum){
+  window.ethereum.on?.("accountsChanged", ()=> location.reload());
+  window.ethereum.on?.("chainChanged", ()=> location.reload());
+}
+</script>
+</body>
+</html>
