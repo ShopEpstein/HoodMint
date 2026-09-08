@@ -62,33 +62,42 @@ cp .env.example .env
 after that deploys their own collection through the **Launch** tab in their
 own browser wallet — no server-held key, no cost to you, ever.
 
-## Hosting — Cloudflare Pages (free, no CLI, no payment method needed)
+## Hosting — Cloudflare (free, no payment method needed)
 
-This repo is already laid out for it: `web/index.html` is the static site,
-`functions/api/pin.js` is the pinning endpoint in Cloudflare's Pages
-Functions format (Fetch API `Request`/`Response`, not Vercel's Node
-`req`/`res` — `api/pin.js` is kept only as a reference if you ever move to a
-Node-style host). Cloudflare Pages' free tier covers both: unlimited static
-requests, 100k Functions requests/day, no card required.
+Cloudflare currently has two separate free products that both host static
+sites + a small API route, and they are **not interchangeable** — a project
+built for one silently doesn't work on the other:
 
-1. **dash.cloudflare.com** → sign up/log in (free account) → **Workers &
-   Pages** → **Create** → **Pages** → **Connect to Git**.
-2. Authorize GitHub, pick **ShopEpstein/HoodMint**, branch
-   `claude/hoodmint-full-deploy-9iloaa` (or `main` once you merge it).
-3. Build settings:
-   - Framework preset: **None**
-   - Build command: *(leave empty — it's static HTML, nothing to build)*
-   - Build output directory: `web`
-   - Root directory: *(leave as `/` — Pages Functions must live at the repo
-     root's `functions/` folder, which is where it already is)*
-4. **Save and Deploy.** First deploy takes under a minute. You get a free
-   `*.pages.dev` URL immediately; add a custom domain later for free too if
-   you own one.
-5. **Settings → Environment variables** → add `PINATA_JWT` (from
-   app.pinata.cloud → API Keys → new key → copy JWT) for both **Production**
-   and **Preview** → **Save**, then **Retry deployment** so it picks it up.
-   Skip this if you'd rather creators paste a CID manually — the console
-   still works without it, it just skips auto-pinning.
+- **Pages** (`*.pages.dev`, "Connect to Git" flow) — routes any file under
+  `functions/` automatically; that's what `functions/api/pin.js` is for.
+- **Workers** (`*.workers.dev`, the newer unified "Workers & Pages ->
+  Workers" product, Git-connected via "Workers Builds", deploy command
+  `npx wrangler deploy`) — needs an explicit `wrangler.jsonc` config and a
+  single worker entry script; that's what `wrangler.jsonc` + `worker.js` at
+  the repo root are for.
 
-That's it — every push to that branch auto-redeploys. No `wrangler`, no
-local Node build, nothing outside the browser.
+**If your project already shows a `workers.dev` URL and a "Deploy command:
+npx wrangler deploy"** (check Settings on the project), you're on Workers —
+`wrangler.jsonc` + `worker.js` in this repo now match that exactly:
+`assets.directory` points at `web/`, and `worker.js` handles `POST /api/pin`
+itself, falling through to static assets for everything else. Just:
+
+1. Push this repo (already done) so the Worker project's connected branch
+   has `wrangler.jsonc` and `worker.js` at the root.
+2. In the dashboard, **Retry build** (or push again — it auto-redeploys on
+   every push to the connected branch).
+3. **Settings → Variables and Secrets** → add `PINATA_JWT` as a **Secret**
+   (from app.pinata.cloud → API Keys → new key → copy JWT) → **Retry
+   build**. Skip this if you'd rather creators paste a CID manually — the
+   console still works without it.
+
+Workers' free tier covers this fully: 100k requests/day, no card required.
+
+**If you'd rather use classic Pages instead** (`*.pages.dev`): dash.cloudflare.com
+→ Workers & Pages → Create → **Pages** → Connect to Git → pick the repo →
+Build output directory `web`, build command empty, root directory `/` →
+Deploy. `functions/api/pin.js` is already in place for that path; set
+`PINATA_JWT` under Settings → Environment variables the same way.
+
+Either way: every push to the connected branch auto-redeploys, no local
+build needed.
